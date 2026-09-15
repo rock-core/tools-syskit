@@ -19,7 +19,7 @@ module Syskit
             # Return incremental update about deployments
             #
             # @return [Protocol::Deployment]
-            def poll_ready_deployments(known: [])
+            def poll_ready_deployments(known: [], reconfigured_since: nil)
                 deployments =
                     plan.find_tasks(Syskit::Deployment).running.find_all(&:ready?)
                 deployment_ids = deployments.map { _1.droby_id.id }
@@ -27,10 +27,25 @@ module Syskit
                     deployments.find_all { !known.include?(_1.droby_id.id) }
                 removed_deployments =
                     known.find_all { |id| !deployment_ids.include?(id) }
-                [new_deployments, removed_deployments]
+
+                if reconfigured_since
+                    updated_deployments =
+                        compute_reconfigured_deployments(known, reconfigured_since)
+                    [new_deployments, removed_deployments, updated_deployments]
+                else
+                    [new_deployments, removed_deployments]
+                end
             end
             command :poll_ready_deployments,
-                    "incremental information about deployments"
+                    "incremental information about deployments and deployed tasks"
+
+            def compute_reconfigured_deployments(known_ids, reconfigured_since)
+                deployments.find_all do |d|
+                    known_ids.include?(d.droby_id.id) &&
+                        (configuration_time = d.latest_configuration_time) &&
+                        configuration_time > reconfigured_since
+                end
+            end
 
             # Save the configuration of all running tasks of the given model to disk
             #

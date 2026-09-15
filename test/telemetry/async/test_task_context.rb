@@ -311,6 +311,164 @@ module Syskit
                     end
                 end
 
+                describe "update_from_discovered_interface" do
+                    it "adds new attributes" do
+                        task, async = make_async_task "test"
+                        Orocos.allow_blocking_calls do
+                            task.create_attribute("new_a", "/int32_t")
+                        end
+
+                        objects = []
+                        async.on_attribute_reachable { objects << _1 }
+                        objects.clear
+
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_equal Set["new_a"], objects.to_set
+                        assert_kind_of Attribute, async.attribute("new_a")
+                    end
+
+                    it "removes attributes that disappeared" do
+                        task, async = make_async_task "test"
+
+                        # NOTE: ruby task contexts do not have APIs to remove
+                        # attributes, so modify the discovered data
+                        discovery = discover_interface(task)
+                        discovery.attributes.delete_if { |a| a.name == "attr" }
+
+                        removed = []
+                        async.on_attribute_unreachable { removed << _1 }
+                        async.update_from_discovered_interface(discovery)
+
+                        assert_equal Set["attr"], removed.to_set
+                    end
+
+                    it "does nothing for unchanged attributes" do
+                        task, async = make_async_task "test"
+                        names = []
+                        async.on_attribute_reachable { names << _1 }
+                        async.on_attribute_unreachable { names << _1 }
+                        names.clear
+
+                        flexmock(Attribute)
+                            .new_instances.should_receive(:reachable!).never
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_empty names
+                    end
+                    it "adds new properties" do
+                        task, async = make_async_task "test"
+                        Orocos.allow_blocking_calls do
+                            task.create_property("new_p", "/int32_t")
+                        end
+
+                        objects = []
+                        async.on_property_reachable { objects << _1 }
+                        objects.clear
+
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_equal Set["new_p"], objects.to_set
+                        assert_equal Set["prop", "new_p"],
+                                     async.each_property.to_set(&:name)
+                        assert_kind_of Property, async.property("new_p")
+                    end
+
+                    it "removes properties that disappeared" do
+                        task, async = make_async_task "test"
+
+                        # NOTE: ruby task contexts do not have APIs to remove
+                        # properties, so modify the discovered data
+                        discovery = discover_interface(task)
+                        discovery.properties.clear
+
+                        removed = []
+                        async.on_property_unreachable { removed << _1 }
+                        async.update_from_discovered_interface(discovery)
+
+                        assert_equal Set["prop"], removed.to_set
+                    end
+
+                    it "does nothing for unchanged properties" do
+                        task, async = make_async_task "test"
+                        names = []
+                        async.on_property_reachable { names << _1 }
+                        async.on_property_unreachable { names << _1 }
+                        names.clear
+
+                        flexmock(Property).new_instances.should_receive(:reachable!).never
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_empty names
+                    end
+
+                    it "adds new output ports" do
+                        task, async = make_async_task "test"
+                        Orocos.allow_blocking_calls do
+                            task.create_output_port("new_out", "/int32_t")
+                        end
+
+                        ports = []
+                        async.on_port_reachable { ports << _1 }
+                        ports.clear
+
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_equal Set["new_out"], ports.to_set
+                        assert_equal Set["state", "in", "out", "new_out"],
+                                     async.each_port.to_set(&:name)
+                        assert_kind_of OutputPort, async.port("new_out")
+                    end
+
+                    it "adds new input ports" do
+                        task, async = make_async_task "test"
+                        Orocos.allow_blocking_calls do
+                            task.create_input_port("new_in", "/int32_t")
+                        end
+
+                        ports = []
+                        async.on_port_reachable { ports << _1 }
+                        ports.clear
+
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_equal Set["new_in"], ports.to_set
+                        assert_equal Set["state", "in", "out", "new_in"],
+                                     async.each_port.to_set(&:name)
+                        assert_kind_of InputPort, async.port("new_in")
+                    end
+
+                    it "removes ports that disappeared" do
+                        task, async = make_async_task "test"
+                        Orocos.allow_blocking_calls do
+                            task.remove_port(task.port("out"))
+                        end
+
+                        ports = []
+                        async.on_port_unreachable { ports << _1 }
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_equal Set["out"], ports.to_set
+                        assert_equal Set["state", "in"], async.each_port.to_set(&:name)
+                    end
+
+                    it "does nothing for unchanged ports" do
+                        task, async = make_async_task "test"
+                        ports = []
+                        async.on_port_reachable { ports << _1 }
+                        async.on_port_unreachable { ports << _1 }
+                        ports.clear
+
+                        flexmock(InputPort)
+                            .new_instances.should_receive(:reachable!).never
+                        flexmock(OutputPort)
+                            .new_instances.should_receive(:reachable!).never
+                        async.update_from_discovered_interface(discover_interface(task))
+
+                        assert_empty ports
+                    end
+                end
+
                 def make_ruby_task(name)
                     ruby_task = Orocos.allow_blocking_calls do
                         t = Orocos::RubyTasks::TaskContext.new(name)
@@ -334,6 +492,12 @@ module Syskit
                         task.name, task.ior, task.model,
                         port_read_manager: @port_read_manager
                     )
+                end
+
+                def discover_interface(task)
+                    Orocos.allow_blocking_calls do
+                        TaskContext.discover_interface(task.name, task.ior, task.model)
+                    end
                 end
 
                 def assert_polling_eventually(period: 0.01, timeout: 2, &block)

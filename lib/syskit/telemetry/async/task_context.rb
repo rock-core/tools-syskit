@@ -45,6 +45,12 @@ module Syskit
                 # will be considered the same from the perspective of a hash key
                 attr_reader :hash
 
+                # The time of the last configuration of this task
+                #
+                # This is used to trigger a discovery of the task's interface, since in
+                # syskit the interface may only change during reconfiguration
+                attr_accessor :configured_since
+
                 def states_index_to_symbols
                     return @states_index_to_symbols if @states_index_to_symbols
 
@@ -88,17 +94,21 @@ module Syskit
 
                 # Create a TaskContext object from the information returned by
                 # {.discover}
-                def self.from_discovered_interface(discovered, port_read_manager:)
+                def self.create_from_discovered_interface(discovered, port_read_manager:)
                     async_task = new(
                         discovered.task.name,
                         model: discovered.orogen_model,
                         port_read_manager: port_read_manager
                     )
-                    async_task.discover_attributes(discovered.attributes)
-                    async_task.discover_properties(discovered.properties)
-                    async_task.discover_ports(discovered.ports)
+                    async_task.update_from_discovered_interface(discovered)
                     async_task.reachable!(discovered.task)
                     async_task
+                end
+
+                def update_from_discovered_interface(discovered)
+                    update_attributes(discovered.attributes)
+                    update_properties(discovered.properties)
+                    update_ports(discovered.ports)
                 end
 
                 # Synchronously discover remote task info and return the corresponding
@@ -111,7 +121,7 @@ module Syskit
                     discovered = Orocos.allow_blocking_calls do
                         TaskContext.discover_interface(name, ior, orogen_model)
                     end
-                    TaskContext.from_discovered_interface(
+                    TaskContext.create_from_discovered_interface(
                         discovered, port_read_manager: port_read_manager
                     )
                 end
@@ -264,46 +274,61 @@ module Syskit
                     @ports.fetch(name)
                 end
 
-                def discover_attributes(raw_attributes)
-                    @attributes =
-                        raw_attributes.each_with_object({}) do |p, h|
-                            async = Attribute.new(self, p.name, p.type)
-                            async.reachable!(p)
-                            h[p.name] = async
-                        end
-
-                    @attributes.each_value { run_hook :on_attribute_reachable, _1 }
+                def update_attributes(raw_attributes)
+                    update_interface_objects(
+                        raw_attributes, @attributes,
+                        :on_attribute_reachable, :on_attribute_unreachable
+                    ) do |a|
+                        Attribute.new(self, a.name, a.type)
+                    end
                 end
 
-                def discover_properties(raw_properties)
-                    @properties =
-                        raw_properties.each_with_object({}) do |p, h|
-                            async = Property.new(self, p.name, p.type)
-                            async.reachable!(p)
-                            h[p.name] = async
-                        end
-
-                    @properties.each_value { run_hook :on_property_reachable, _1 }
+                def update_properties(raw_properties)
+                    update_interface_objects(
+                        raw_properties, @properties,
+                        :on_property_reachable, :on_property_unreachable
+                    ) do |p|
+                        Property.new(self, p.name, p.type)
+                    end
                 end
 
-                def discover_ports(raw_ports)
-                    @ports =
-                        raw_ports.each_with_object({}) do |p, h|
-                            async =
-                                case p
-                                when Orocos::InputPort
-                                    InputPort.new(self, p.name, p.type)
-                                else
-                                    OutputPort.new(
-                                        self, p.name, p.type, @port_read_manager
-                                    )
-                                end
-
-                            async.reachable!(p)
-                            h[p.name] = async
+                def update_ports(raw_ports)
+                    update_interface_objects(
+                        raw_ports, @ports,
+                        :on_port_reachable, :on_port_unreachable
+                    ) do |p|
+                        case p
+                        when Orocos::InputPort
+                            InputPort.new(self, p.name, p.type)
+                        else
+                            OutputPort.new(
+                                self, p.name, p.type, @port_read_manager
+                            )
                         end
+                    end
+                end
 
-                    @ports.each_value { run_hook :on_port_reachable, _1 }
+                def update_interface_objects(new, actual, reachable_hook,
+                    unreachable_hook)
+                    new_names = Set.new
+                    new.each do |obj|
+                        name = obj.name
+                        new_names << name
+                        next if actual.key?(name)
+
+                        async = yield(obj)
+                        async.reachable!(obj)
+                        actual[name] = async
+                        run_hook reachable_hook, name
+                    end
+
+                    actual.delete_if do |k, v|
+                        next if new_names.include?(k)
+
+                        v.unreachable!
+                        run_hook unreachable_hook, k
+                        true
+                    end
                 end
 
                 def dispose

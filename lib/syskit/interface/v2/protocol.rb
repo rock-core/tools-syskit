@@ -36,7 +36,7 @@ module Syskit
                 end
 
                 DeployedTask = Struct.new(
-                    :name, :ior, :orogen_model_name, keyword_init: true
+                    :name, :ior, :orogen_model_name, :configured_since, keyword_init: true
                 )
 
                 def self.register_marshallers(protocol)
@@ -68,7 +68,8 @@ module Syskit
                     ior = remote_task_handle.handle.ior
                     model_name = remote_task_handle.handle.model.name
                     DeployedTask.new(
-                        name: name, ior: ior, orogen_model_name: model_name
+                        name: name, ior: ior, orogen_model_name: model_name,
+                        configured_since: remote_task_handle.configured_since
                     )
                 end
 

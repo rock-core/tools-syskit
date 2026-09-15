@@ -61,6 +61,42 @@ module Syskit
                         assert_equal task2.ior, @ns.get("test").identity
                     end
 
+                    it "does not update an existing async task " \
+                       "if it has not been reconfigured" do
+                        deployed_task, = make_deployed_task("test", "something")
+
+                        @ns.async_update_tasks([deployed_task])
+                        @ns.wait_for_task_discovery
+                        @ns.resolve_discovered_tasks
+
+                        flexmock(@ns.get("test"))
+                            .should_receive(:update_from_discovered_interface)
+                            .never
+                        @ns.async_update_tasks([deployed_task])
+                        @ns.wait_for_task_discovery
+                        @ns.resolve_discovered_tasks
+                    end
+
+                    it "updates an existing async task if it has been reconfigured" do
+                        deployed_task, ruby_task = make_deployed_task("test", "something")
+
+                        @ns.async_update_tasks([deployed_task])
+                        @ns.wait_for_task_discovery
+                        @ns.resolve_discovered_tasks
+
+                        flexmock(@ns.get("test"))
+                            .should_receive(:update_from_discovered_interface)
+                            .once.pass_thru
+                        ruby_task.create_output_port("new_port", "/int32_t")
+                        deployed_task.configured_since = Time.now
+                        @ns.async_update_tasks([deployed_task])
+                        @ns.wait_for_task_discovery
+                        @ns.resolve_discovered_tasks
+
+                        assert_equal %w[state new_port],
+                                     @ns.get("test").each_port.map(&:name)
+                    end
+
                     it "does not register a task if it has been removed while it was " \
                        "being discovered" do
                         deployed_task, = make_deployed_task("test", "something")
@@ -265,8 +301,7 @@ module Syskit
                 end
 
                 def deployed_task_s
-                    @deployed_task_s ||=
-                        Struct.new(:name, :ior, :orogen_model_name, keyword_init: true)
+                    @deployed_task_s ||= Syskit::Interface::V2::Protocol::DeployedTask
                 end
 
                 def make_deployed_task(name, orogen_model_name)
