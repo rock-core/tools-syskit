@@ -40,6 +40,9 @@ module Syskit
         # The underlying process object
         attr_reader :orocos_process
 
+        # The time after the latest task reconfiguration
+        attr_reader :latest_configuration_time
+
         # An object describing the underlying pocess server
         #
         # @return [RobyApp::Configuration::ProcessServerConfig]
@@ -500,7 +503,7 @@ module Syskit
         RemoteTaskHandles = Struct.new(
             :handle, :state_reader, :state_getter, :default_properties,
             :configuring, :current_configuration, :needs_reconfiguration,
-            :in_fatal, :quarantined
+            :in_fatal, :quarantined, :configured_since
         )
 
         # @api private
@@ -520,6 +523,15 @@ module Syskit
         # Declare that the given task is being configured
         def start_configuration(orocos_name)
             remote_task_handles[orocos_name].configuring = true
+        end
+
+        # @api private
+        #
+        # Update a task handle's configured_since attribute
+        def update_configured_since(orocos_name)
+            t = Time.now
+            remote_task_handles[orocos_name].configured_since = t
+            @latest_configuration_time = t
         end
 
         # @api private

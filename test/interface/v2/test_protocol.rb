@@ -29,15 +29,14 @@ module Syskit
 
                     it "adds deployment-specific info" do
                         flexmock(@deployment, pid: 200)
-                        handles = {
-                            "test" => Syskit::Deployment::RemoteTaskHandles.new(
-                                flexmock(
-                                    ior: "some_ior",
-                                    model: flexmock(name: "orogen::Name")
-                                )
+                        handle = Syskit::Deployment::RemoteTaskHandles.new(
+                            flexmock(
+                                ior: "some_ior",
+                                model: flexmock(name: "orogen::Name")
                             )
-                        }
-                        flexmock(@deployment, remote_task_handles: handles)
+                        )
+                        handle.configured_since = t0 = Time.now
+                        flexmock(@deployment, remote_task_handles: { "test" => handle })
                         marshalled = @channel.marshal_filter_object(@deployment)
 
                         assert_equal 200, marshalled.pid
@@ -45,7 +44,8 @@ module Syskit
                         expected_task = {
                             name: "test",
                             ior: "some_ior",
-                            orogen_model_name: "orogen::Name"
+                            orogen_model_name: "orogen::Name",
+                            configured_since: t0
                         }
                         assert_equal [expected_task],
                                      marshalled.deployed_tasks.map(&:to_h)
