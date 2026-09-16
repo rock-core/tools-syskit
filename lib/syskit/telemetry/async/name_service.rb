@@ -90,9 +90,12 @@ module Syskit
                 def queue_new_tasks_discovery(tasks)
                     tasks.each do |t|
                         next if @discovery[t.name]
-                        next if t.ior == @registered_tasks[t.name]&.identity
 
-                        async_discover_task(t)
+                        async_task = @registered_tasks[t.name]
+                        next if t.ior == async_task&.identity &&
+                                t.configured_since == async_task&.configured_since
+
+                        async_discover_task(t, async_task)
                     end
                 end
 
@@ -121,9 +124,16 @@ module Syskit
                         self.ior = ior
                         return unless discovered
 
-                        self.async_task = TaskContext.from_discovered_interface(
-                            discovered, port_read_manager: port_read_manager
-                        )
+                        async_task = self.async_task
+                        if async_task && async_task.identity == ior
+                            async_task.update_from_discovered_interface(discovered)
+                        else
+                            async_task = TaskContext.create_from_discovered_interface(
+                                discovered, port_read_manager: port_read_manager
+                            )
+                        end
+                        async_task.configured_since = task.configured_since
+                        self.async_task = async_task
                     end
 
                     def wait
@@ -138,7 +148,7 @@ module Syskit
                 # @api private
                 #
                 # Create a future that discovers a remote task
-                def async_discover_task(task)
+                def async_discover_task(task, async_task)
                     ensure_in_main_thread
 
                     future = Concurrent::Promises.future_on(@discovery_executor) do
@@ -148,7 +158,9 @@ module Syskit
                         # set while the future was pending
                         discover_task(task.name, ior, task.orogen_model_name) if ior
                     end
-                    @discovery[task.name] = AsyncDiscovery.new(task: task, future: future)
+                    @discovery[task.name] =
+                        AsyncDiscovery.new(task: task, future: future,
+                                           async_task: async_task)
                 end
 
                 def wait_and_resolve_all_pending_discoveries
@@ -243,7 +255,7 @@ module Syskit
                     # started processing. Throw away the resolved task and start
                     # again
                     async_discovery.async_task&.dispose
-                    async_discover_task(async_discovery.task)
+                    async_discover_task(async_discovery.task, async_discovery.async_task)
                     false
                 end
 

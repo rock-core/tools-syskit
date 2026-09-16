@@ -600,18 +600,28 @@ module Syskit
                 def query_deployment_update
                     polling_call(
                         ["syskit"], "poll_ready_deployments",
-                        known: @current_deployments.map(&:id)
-                    ) do |updated, removed|
-                        update_current_deployments(updated, removed)
+                        known: @current_deployments.map(&:id),
+                        reconfigured_since: latest_configuration_time || Time.at(0)
+                    ) do |new, removed, updated|
+                        update_current_deployments(new, removed, updated || [])
                         process_current_deployments
                     end
                 end
 
-                def update_current_deployments(updated, removed)
+                def update_current_deployments(new, removed, updated)
+                    updated_ids = updated.map(&:id)
                     @current_deployments.delete_if do |d|
-                        removed.include?(d.id)
+                        removed.include?(d.id) || updated_ids.include?(d.id)
                     end
+                    @current_deployments.concat(new)
                     @current_deployments.concat(updated)
+                end
+
+                def latest_configuration_time
+                    times = @current_deployments.flat_map do
+                        _1.deployed_tasks.map(&:configured_since)
+                    end
+                    times.compact.max
                 end
 
                 def reset_current_deployments

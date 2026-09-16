@@ -1100,9 +1100,15 @@ module Syskit
                     log_remote_call(:configure, orocos_name) do
                         orocos_task.configure(false)
                     end
+                    true
                 else
                     info "#{self} was already configured"
+                    false
                 end
+            end
+
+            promise.on_success do |called_configure|
+                execution_agent.update_configured_since(orocos_name) if called_configure
             end
         end
 
