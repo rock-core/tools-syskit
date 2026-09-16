@@ -2,7 +2,7 @@
 
 require "archive/tar/minitar"
 require "sys/filesystem"
-require "syskit/roby_app/log_transfer_server/ftp_upload"
+require "syskit/roby_app/log_transfer/ftp_upload"
 
 module Syskit
     module CLI
@@ -300,7 +300,7 @@ module Syskit
             #
             # @return [LogUploadState:Result]
             def self.transfer_file(file, server, root, target_name: File.basename(file))
-                ftp = RobyApp::LogTransferServer::FTPUpload.new(
+                ftp = RobyApp::LogTransfer::FTPUpload.new(
                     server.host, server.port, server.certificate, server.user,
                     server.password, file,
                     target_name: target_name,

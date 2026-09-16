@@ -2,7 +2,7 @@
 
 module Syskit
     module RobyApp
-        module LogTransferServer
+        module LogTransfer
             # State of the asynchronous file transfers managed by {Server}
             class LogUploadState
                 attr_reader :pending_count

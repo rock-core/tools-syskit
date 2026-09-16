@@ -6,7 +6,7 @@ module Syskit
         #
         # The main configuration instance is accessible as Syskit.conf or (if
         # running in a Roby application) as Conf.syskit
-        class Configuration # rubocop:disable Metrics/ClassLength
+        class Configuration
             # The application that we are configuring
             # @return [Roby::Application]
             attr_reader :app
@@ -58,25 +58,6 @@ module Syskit
             # This usually includes the time needed to stop and cleanup. The default
             # is 20s
             attr_accessor :exception_transition_timeout
-
-            # Configuration of Syskit's log transfer functionality
-            #
-            # Minimum configuration: set `ip` to an IP which the process servers
-            # can reach. You must also configure log rotation
-            # ({#log_rotation_period}). Syskit will transfer the rotated logs to
-            # the main Syskit's instance log directory.
-            #
-            # If you want to transfer to another dir, also set {#target_dir}. If you do
-            # set {#target_dir}, local files will also be transferred. There is currently
-            # no optimization for this (the local logs will also be transferred through
-            # the network)
-            #
-            # If you want to use an external server, you must also provide its public
-            # certificate and set self_spawned to false. In this case, target_dir is
-            # ignored
-            #
-            # @return [LogTransferManager::Configuration]
-            attr_reader :log_transfer
 
             # Period in seconds for triggering log rotation and transfer
             #
@@ -337,17 +318,6 @@ module Syskit
                 @resolution_time_slice = 0.5
 
                 @log_rotation_period = nil
-                @log_transfer = LogTransferManager::Configuration.new(
-                    user: "syskit",
-                    port: 20_301,
-                    password: SecureRandom.base64(32),
-                    self_spawned: true,
-                    certificate: nil, # Use random generated self-signed certificate
-                    target_dir: nil, # Use the app's log dir
-                    default_max_upload_rate: Float::INFINITY,
-                    max_upload_rates: {},
-                    implicit_ftps: Runtime::Server.use_implicit_ftps?
-                )
 
                 clear
                 self.export_types = true
@@ -860,18 +830,17 @@ module Syskit
                 client = ProcessManagers::Remote::Manager.new(
                     host, port, root_loader: app.default_loader
                 )
-                config = register_process_server(
+                register_process_server(
                     name, client,
                     host_id: host_id || name,
                     logging_enabled: logging_enabled,
                     register_on_name_server: register_on_name_server
                 )
-                config.supports_log_transfer = true
                 client
             end
 
             ProcessServerConfig =
-                Struct.new :name, :client, :log_dir, :host_id, :supports_log_transfer,
+                Struct.new :name, :client, :log_dir, :host_id,
                            :logging_enabled, :register_on_name_server, :disabled,
                            keyword_init: true do
                     def manager
@@ -895,10 +864,6 @@ module Syskit
 
                     def loader
                         client.loader
-                    end
-
-                    def supports_log_transfer?
-                        supports_log_transfer
                     end
 
                     def logging_enabled?

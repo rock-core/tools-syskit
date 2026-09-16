@@ -6,7 +6,7 @@
 require "pathname"
 require "thor"
 require "syskit/cli/log_runtime_archive"
-require "syskit/runtime/server/spawn_server"
+require "syskit/roby_app/log_transfer/server"
 
 module Syskit
     module CLI
@@ -129,6 +129,20 @@ module Syskit
 
             desc "transfer_server TARGET_DIR HOST PORT CERTFILE_PATH USER PASSWORD",
                  "creates the log transfer FTP server that runs on the main computer"
+            long_desc <<~DOC
+                To create a certificate, run the following, replacing 10.16.1.1 by the
+                IP that will be used by clients to access the transfer server
+
+                openssl genrsa -out transfer_rsa_private_key.pem 2048
+
+                openssl req -new -x509 -key transfer_rsa_private_key.pem \
+                    -out transfer_certificate.pem -days +3650 -subj "/CN=10.16.1.1"
+
+                cat transfer_rsa_private_key.pem transfer_certificate.pem \
+                    > log-transfer-server.pem
+
+                Then use transfer_certificate.pem on the client machines
+            DOC
             option :implicit_ftps,
                    type: :boolean, default: false,
                    desc: "use implicit connection method for ftps " \
@@ -136,6 +150,9 @@ module Syskit
             option :min_free_space,
                    type: :numeric, default: 0,
                    desc: "abort transfers if the disk space is below this limit (in MB)"
+            option :debug,
+                   type: :boolean, default: false,
+                   desc: "enable debug output"
             def transfer_server( # rubocop:disable Metrics/ParameterLists
                 target_dir, host, port, certfile_path, user, password
             )
@@ -220,13 +237,14 @@ module Syskit
                     target_dir, host, port, certificate, user, password,
                     implicit_ftps, min_free_space
                 )
-                    Runtime::Server::SpawnServer.new(
+                    RobyApp::LogTransfer::Server.new(
                         target_dir, user, password,
                         certificate,
                         interface: host,
                         port: port,
                         implicit_ftps: implicit_ftps,
-                        min_free_space: min_free_space
+                        min_free_space: min_free_space,
+                        debug: options[:debug]
                     )
                 end
 
