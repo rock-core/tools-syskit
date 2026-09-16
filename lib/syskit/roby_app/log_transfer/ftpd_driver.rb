@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "syskit/runtime/server/write_only_disk_file_system"
+require "syskit/roby_app/log_transfer/write_only_disk_file_system"
 
 module Syskit
-    module Runtime
-        module Server
+    module RobyApp
+        module LogTransfer
             # Driver for log transfer FTP server
-            class Driver
+            class FtpdDriver
                 def initialize(user, password, data_dir, min_free_space: 0)
                     @user = user
                     @password = password

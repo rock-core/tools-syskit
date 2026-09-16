@@ -21,10 +21,6 @@ require "syskit/roby_app/configuration"
 require "syskit/roby_app/plugin"
 require "syskit/roby_app/single_file_dsl"
 
-require "syskit/roby_app/tmp_root_ca"
-require "syskit/roby_app/log_transfer_manager"
-require "syskit/roby_app/log_transfer_server"
-
 module Syskit
     class << self
         # The main configuration object
