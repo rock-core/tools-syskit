@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
-require "syskit/roby_app/log_transfer_server/log_upload_state"
+require "syskit/roby_app/log_transfer/log_upload_state"
+require "net/ftp"
 
 module Syskit
     module RobyApp
-        module LogTransferServer
+        module LogTransfer
             # Encapsulation of the log file upload process
             class FTPUpload
                 def initialize( # rubocop:disable Metrics/ParameterLists

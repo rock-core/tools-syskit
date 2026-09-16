@@ -1,11 +1,17 @@
 # frozen_string_literal: true
 
+require "ftpd"
+require "ipaddr"
+require "pathname"
 require "English"
-require "syskit/runtime/server/driver"
+
+require "syskit/roby_app/log_transfer/ftpd_driver"
+require "syskit/roby_app/log_transfer/write_only_disk_file_system"
+require "syskit/roby_app/log_transfer/server"
 
 module Syskit
-    module Runtime
-        module Server # :nodoc:
+    module RobyApp
+        module LogTransfer # :nodoc:
             # Whether we should configure client and server to use implicit FTPs by
             # default
             #
@@ -17,7 +23,7 @@ module Syskit
             end
 
             # Class responsible for spawning an FTP server for transfering logs
-            class SpawnServer
+            class Server
                 attr_reader :port
 
                 # tgt_dir must be an absolute path
@@ -37,7 +43,7 @@ module Syskit
                     min_free_space: 0
                 )
                     @debug = debug
-                    driver = Driver.new(
+                    driver = FtpdDriver.new(
                         user, password, tgt_dir, min_free_space: min_free_space
                     )
                     server = Ftpd::FtpServer.new(driver)
@@ -46,7 +52,7 @@ module Syskit
                     server.tls = implicit_ftps ? :implicit : :explicit
                     server.passive_ports = passive_ports
                     server.certfile_path = certfile_path
-                    server.auth_level = Ftpd.const_get("AUTH_PASSWORD")
+                    server.auth_level = ::Ftpd::AUTH_PASSWORD
                     server.session_timeout = session_timeout
                     server.log = make_log
                     server.nat_ip = nat_ip

@@ -11,13 +11,6 @@ module Syskit
         #
         # @see Configuration#use_deployment DeploymentGroup#use_deployment
         module Remote
-            # Type transferred between the server and the manager to report on log updates
-            #
-            # Defined here to make sure it is actually defined. Otherwise, the log
-            # state reporting would fail at runtime, and unit-testing for this is
-            # very hard.
-            LogUploadState = RobyApp::LogTransferServer::LogUploadState
-
             # Syskit-side interface to the remote process server
             class Manager
                 # Emitted when an operation fails
@@ -285,35 +278,6 @@ module Syskit
 
                 def queue_death_announcement(deadline:)
                     @death_queue.push(read_object(deadline: deadline))
-                end
-
-                # Initiate the upload of a file from the remote process server
-                #
-                # The transfer is asynchronous, use {#upload_state} to track the
-                # upload progress
-                def log_upload_file(
-                    host, port, certificate, user, password, localfile,
-                    max_upload_rate: Float::INFINITY,
-                    implicit_ftps: Runtime::Server.use_implicit_ftps?
-                )
-                    write_command(
-                        COMMAND_LOG_UPLOAD_FILE,
-                        [host, port, certificate, user, password, localfile,
-                         max_upload_rate, implicit_ftps]
-                    )
-
-                    wait_for_ack
-                end
-
-                # Query the current state of log upload
-                #
-                # @return [UploadState]
-                def log_upload_state
-                    write_command(COMMAND_LOG_UPLOAD_STATE)
-
-                    deadline = compute_response_deadline
-                    wait_for_ack
-                    read_object(deadline: deadline)
                 end
 
                 # Wait for some data to be available on the socket

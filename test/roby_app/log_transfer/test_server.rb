@@ -1,13 +1,14 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
-require "syskit/roby_app/log_transfer_server"
+require "syskit/roby_app/log_transfer/server"
+require_relative "../../tmp_root_ca"
 require "net/ftp"
 
 module Syskit
-    module Runtime
-        module Server
-            describe SpawnServer do
+    module RobyApp
+        module LogTransfer
+            describe Server do
                 ### TESTS ###
                 before do
                     @source_dir = make_tmppath
@@ -110,10 +111,10 @@ module Syskit
                 end
 
                 def spawn_server
-                    @ca = RobyApp::TmpRootCA.new("127.0.0.1")
+                    @ca = TmpRootCA.new("127.0.0.1")
 
                     @implicit_ftps = Server.use_implicit_ftps?
-                    @server = SpawnServer.new(
+                    @server = Server.new(
                         @target_dir, "user", "password", @ca.private_certificate_path,
                         interface: "127.0.0.1", implicit_ftps: @implicit_ftps
                     )
