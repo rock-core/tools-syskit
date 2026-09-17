@@ -3,8 +3,8 @@
 require "sys/filesystem"
 
 module Syskit
-    module Runtime
-        module Server
+    module RobyApp
+        module LogTransfer
             # Custom write-only file system that detects collision between files
             class WriteOnlyDiskFileSystem
                 include Ftpd::DiskFileSystem::Base

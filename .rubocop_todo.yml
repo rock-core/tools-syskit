@@ -609,7 +609,6 @@ Metrics/AbcSize:
     - 'lib/syskit/robot/master_device_instance.rb'
     - 'lib/syskit/robot/robot_definition.rb'
     - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/roby_app/log_transfer_server/spawn_server.rb'
     - 'lib/syskit/roby_app/logging_group.rb'
     - 'lib/syskit/roby_app/plugin.rb'
     - 'lib/syskit/roby_app/rest_api.rb'
@@ -799,7 +798,6 @@ Metrics/ParameterLists:
     - 'lib/syskit/robot/communication_bus.rb'
     - 'lib/syskit/robot/master_device_instance.rb'
     - 'lib/syskit/roby_app/configuration.rb'
-    - 'lib/syskit/roby_app/log_transfer_server/spawn_server.rb'
     - 'lib/syskit/runtime/connection_management.rb'
 
 # Offense count: 119

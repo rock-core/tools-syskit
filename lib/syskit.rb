@@ -41,10 +41,8 @@ module Syskit
     end
 end
 
-require "syskit/roby_app/log_transfer_server"
 require "syskit/process_managers/process_base"
 require "syskit/process_managers/status"
-require "syskit/roby_app/log_transfer_server/log_upload_state"
 require "syskit/process_managers/remote/protocol"
 require "syskit/process_managers/remote/loader"
 require "syskit/process_managers/remote/manager"
