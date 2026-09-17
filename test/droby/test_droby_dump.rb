@@ -187,8 +187,10 @@ module Syskit
                 it "returns the constant" do
                     droby = droby_local_marshaller.dump(Actions::Profile.new("AProfile"))
                     droby = Marshal.load(Marshal.dump(droby))
-                    flexmock(droby).should_receive(:constant).with("AProfile")
-                                   .and_return(profile = Actions::Profile.new)
+                    profile = Syskit::Actions::Profile.new
+                    flexmock(Object)
+                        .should_receive(:const_get).with("AProfile")
+                        .and_return(profile)
                     unmarshalled = droby_remote_marshaller.local_object(droby)
                     assert_same profile, unmarshalled
                 end

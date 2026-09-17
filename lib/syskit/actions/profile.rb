@@ -270,7 +270,7 @@ module Syskit
             end
 
             def to_s
-                name
+                name || "<anonymous profile>"
             end
 
             # Promote requirements taken from another profile to this profile

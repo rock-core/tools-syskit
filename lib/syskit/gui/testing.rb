@@ -219,7 +219,7 @@ module Syskit
                         items << %w[title Models]
                         models.sort.each do |model_name|
                             begin
-                                model_object = constant(model_name)
+                                model_object = const_get(model_name)
                             rescue NameError
                                 items << ["", model_name]
                                 next
