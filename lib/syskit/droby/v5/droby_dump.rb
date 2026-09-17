@@ -308,7 +308,7 @@ module Syskit
 
                         profile =
                             begin
-                                constant(@name)
+                                Object.const_get(@name)
                             rescue Exception
                                 Actions::Profile.new(@name)
                             end
