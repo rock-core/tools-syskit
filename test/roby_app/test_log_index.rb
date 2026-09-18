@@ -7,33 +7,25 @@ module Syskit
         describe LogIndex do
             before do
                 @dir = make_tmpdir
+                @path = File.join(@dir, "index.sqlite")
+                @index = LogIndex.create(@path)
             end
 
             it "creates a valid database" do
-                path = File.join(@dir, "index.sqlite")
-                index = LogIndex.create(path)
-                index.dispose
+                @index.dispose
 
-                db = Sequel.connect("sqlite:///#{path}")
-
+                db = Sequel.connect("sqlite:///#{@path}")
                 db.execute("PRAGMA journal_mode;") do |result|
                     assert_equal [["wal"]], result.to_a
                 end
             end
 
             it "does nothing in write_log_rotation if there are no logs" do
-                path = File.join(@dir, "index.sqlite")
-                index = LogIndex.create(path)
-                index.write_log_rotation(Time.now)
-                assert_equal [], index.db[:log_files].select.to_a
+                @index.write_log_rotation(Time.now)
+                assert_equal [], @index.db[:log_files].select.to_a
             end
 
             describe "#register_new_log" do
-                before do
-                    path = File.join(@dir, "index.sqlite")
-                    @index = LogIndex.create(path)
-                end
-
                 it "creates a new record for the new log file" do
                     t0, t1 = 2.times.map { Time.now.floor(5) }
 
@@ -80,11 +72,6 @@ module Syskit
             end
 
             describe "#register_finished_log" do
-                before do
-                    path = File.join(@dir, "index.sqlite")
-                    @index = LogIndex.create(path)
-                end
-
                 it "sets the end time on files with the same basename that do not have " \
                    "one, regardless of their sequence number" do
                     t0, t1, t2, = 4.times.map { Time.now.floor(5) }
@@ -133,6 +120,36 @@ module Syskit
                     ]
                     assert_equal expected, @index.db[:log_files].select.to_a
                 end
+            end
+
+            it "behaves correctly if a file is rotated" do
+                t0, t1, t2, = 4.times.map { Time.now.floor(5) }
+                @index.register_new_log(t0, "test.9.log", [])
+                @index.write_log_rotation(t0)
+                @index.register_finished_log(t1, "test.9.log")
+                @index.register_new_log(t2, "test.10.log", [])
+                @index.write_log_rotation(t2)
+
+                expected = [
+                    { id: 1, basename: "test", sequence: 9, log_rotation_id: 1,
+                      start_time: t0, end_time: t1, archive_name: nil },
+                    { id: 2, basename: "test", sequence: 10, log_rotation_id: 2,
+                      start_time: t2, end_time: nil, archive_name: nil }
+                ]
+                assert_equal expected, @index.db[:log_files].to_a
+            end
+
+            it "behaves correctly if a file is opened and closed in the same cycle" do
+                _, t1, t2, t3 = 4.times.map { Time.now.floor(5) }
+                @index.register_new_log(t1, "test.10.log", [])
+                @index.register_finished_log(t2, "test.10.log")
+                @index.write_log_rotation(t3)
+
+                expected = [
+                    { id: 1, basename: "test", sequence: 10, log_rotation_id: 1,
+                      start_time: t1, end_time: t2, archive_name: nil }
+                ]
+                assert_equal expected, @index.db[:log_files].to_a
             end
         end
     end
