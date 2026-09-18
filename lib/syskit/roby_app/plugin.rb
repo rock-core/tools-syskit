@@ -250,20 +250,9 @@ module Syskit
                 if Syskit.conf.log_rotation_period
                     @log_rotation_poll_handler =
                         app.execution_engine.every(Syskit.conf.log_rotation_period, immediate: false) do
-                            app.syskit_log_rotation_poll_handler
+                            app.syskit_rotate_logs
                         end
                 end
-            end
-
-            # @api private
-            #
-            # Implementation of the periodic handler called when log_rotation_period is
-            # set
-            #
-            # The handler performs log rotation, as well as transfer if transfer is
-            # configured
-            def syskit_log_rotation_poll_handler
-                syskit_rotate_logs
             end
 
             # @api private
