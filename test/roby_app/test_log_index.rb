@@ -42,10 +42,12 @@ module Syskit
                 it "creates new streams and associates them with the log file" do
                     t0, t1 = 2.times.map { Time.now.floor(5) }
 
-                    @index.register_new_log(t0, "test.10.log", ["some", "stream"])
+                    streams = { "some" => "/int32_t", "stream" => "/double" }
+                    @index.register_new_log(t0, "test.10.log", streams)
                     @index.write_log_rotation(t1)
 
-                    expected = [{ id: 1, name: "some" }, { id: 2, name: "stream" }]
+                    expected = [{ id: 1, name: "some", type: "/int32_t" },
+                                { id: 2, name: "stream", type: "/double" }]
                     assert_equal expected, @index.db[:log_streams].select.to_a
                     expected = [{ log_stream_id: 1, log_file_id: 1 },
                                 { log_stream_id: 2, log_file_id: 1 }]
@@ -57,9 +59,11 @@ module Syskit
                 it "reuses existing streams to associate them with the log file" do
                     t0, t1 = 2.times.map { Time.now.floor(5) }
 
-                    @index.register_new_log(t0, "test.10.log", ["some", "stream"])
+                    streams = { "some" => "/int32_t", "stream" => "/double" }
+                    @index.register_new_log(t0, "test.10.log", streams)
                     @index.db[:log_streams].multi_insert(
-                        [{ name: "foo" }, { name: "some" }, { name: "bar" }]
+                        [{ name: "foo", type: "t" }, { name: "some", type: "t" },
+                         { name: "bar", type: "t" }]
                     )
                     @index.write_log_rotation(t1)
 
