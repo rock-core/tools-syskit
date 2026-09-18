@@ -43,6 +43,10 @@ module Syskit
             self == other
         end
 
+        def dynamic?
+            model.dynamic?
+        end
+
         def inspect
             to_s
         end
