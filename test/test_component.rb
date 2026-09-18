@@ -191,6 +191,32 @@ describe Syskit::Component do
         end
     end
 
+    describe "#instanciate_dynamic_input_port" do
+        it "creates a dynamic input port" do
+            task_m = Syskit::TaskContext.new_submodel do
+                dynamic_input_port(/\w+/, nil)
+            end
+            dynport = task_m.orogen_model.dynamic_ports.find { true }
+
+            plan.add(task = task_m.new)
+            task.instanciate_dynamic_input_port("name", "/double", dynport)
+            assert task.model.find_input_port("name").dynamic?
+        end
+    end
+
+    describe "#instanciate_dynamic_output_port" do
+        it "creates a dynamic output port" do
+            task_m = Syskit::TaskContext.new_submodel do
+                dynamic_output_port(/\w+/, nil)
+            end
+            dynport = task_m.orogen_model.dynamic_ports.find { true }
+
+            plan.add(task = task_m.new)
+            task.instanciate_dynamic_output_port("name", "/double", dynport)
+            assert task.model.find_output_port("name").dynamic?
+        end
+    end
+
     describe "#can_merge?" do
         attr_reader :srv_m, :task_m, :testing_task, :tested_task
 
@@ -558,6 +584,7 @@ describe Syskit::Component do
             plan.in_transaction do |trsc|
                 proxy = trsc[task]
                 proxy.instanciate_dynamic_output_port("name", "/double", dynport)
+                refute task.model.find_output_port("name")
                 trsc.commit_transaction
             end
             assert task.model.find_output_port("name")

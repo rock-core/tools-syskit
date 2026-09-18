@@ -80,6 +80,8 @@ module Syskit
                     app.auto_load_all_task_libraries = true
                 end
 
+                app.syskit_create_log_index if Syskit.conf.enable_log_index?
+
                 require "orocos/async" if Conf.ui?
 
                 if app.development_mode? && !app.testing?
@@ -222,6 +224,9 @@ module Syskit
                     app.syskit_remove_configuration_changes_listener
                 end
 
+                @syskit_log_index&.dispose
+                @syskit_log_index = nil
+
                 stop_local_process_server(app)
                 disconnect_all_process_servers
             end
@@ -250,20 +255,9 @@ module Syskit
                 if Syskit.conf.log_rotation_period
                     @log_rotation_poll_handler =
                         app.execution_engine.every(Syskit.conf.log_rotation_period, immediate: false) do
-                            app.syskit_log_rotation_poll_handler
+                            app.syskit_rotate_logs
                         end
                 end
-            end
-
-            # @api private
-            #
-            # Implementation of the periodic handler called when log_rotation_period is
-            # set
-            #
-            # The handler performs log rotation, as well as transfer if transfer is
-            # configured
-            def syskit_log_rotation_poll_handler
-                syskit_rotate_logs
             end
 
             # @api private
@@ -1026,6 +1020,15 @@ module Syskit
                 rest_api.mount REST_API => "/syskit"
             end
 
+            # An index of the generated log files
+            #
+            # This is used by external tooling to "find" relevant logs quickly on a
+            # running system
+            #
+            # @return [nil,LogIndex] the index object, or nil if the functionality is
+            # disabled
+            attr_reader :syskit_log_index
+
             # Perform log rotation
             #
             # Syskit provides two mechanisms to rotate logs. An in-plan mechanism,
@@ -1060,7 +1063,27 @@ module Syskit
                     end
 
                 syskit_call_rotation_handlers
+                @syskit_log_index&.write_log_rotation(Time.now)
+
                 result
+            end
+
+            def syskit_log_index_path
+                File.join(Roby.app.log_dir, "log_index.sqlite")
+            end
+
+            def syskit_create_log_index
+                @syskit_log_index = LogIndex.create(syskit_log_index_path)
+            end
+
+            # (see LogIndex#register_new_log)
+            def syskit_register_new_log(*args)
+                @syskit_log_index&.register_new_log(*args)
+            end
+
+            # (see LogIndex#register_finished_log)
+            def syskit_register_finished_log(*args)
+                @syskit_log_index&.register_finished_log(*args)
             end
         end
     end

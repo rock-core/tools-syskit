@@ -46,6 +46,10 @@ module Syskit
 
             attr_reader :max_sizes
 
+            def dynamic?
+                orogen_model.dynamic?
+            end
+
             # Whether this port and the argument represent the same port
             def same_port?(other)
                 other.kind_of?(Port) && (other.component_model <=> component_model) &&

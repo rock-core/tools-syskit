@@ -12,6 +12,7 @@ module Syskit
 end
 
 require "securerandom"
+require "sequel"
 
 require "syskit/roby_app/logging_configuration"
 require "syskit/roby_app/logging_group"
@@ -20,6 +21,7 @@ require "syskit/roby_app/toplevel"
 require "syskit/roby_app/configuration"
 require "syskit/roby_app/plugin"
 require "syskit/roby_app/single_file_dsl"
+require "syskit/roby_app/log_index"
 
 module Syskit
     class << self
