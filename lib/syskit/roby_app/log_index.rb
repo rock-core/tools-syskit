@@ -130,15 +130,28 @@ module Syskit
                 @pending.clear
             end
 
-            def self.insert_and_resolve_stream_ids(db, stream_names)
-                resolved_streams =
-                    db[:log_streams].where(name: stream_names).to_h { |r| [r[:name], r[:id]] }
-                stream_names.map do |stream_name|
-                    next if resolved_streams.key?(stream_name)
+            def self.insert_and_resolve_stream_ids(db, streams)
+                stream_names = streams.map(&:first)
+                resolved_streams = resolve_stream_ids(db, stream_names)
 
-                    resolved_streams[stream_name] = db[:log_streams].insert(name: stream_name)
+                new_streams = streams.find_all do |stream_name, _stream_type|
+                    !resolved_streams.key?(stream_name)
                 end
-                resolved_streams
+
+                return resolved_streams if new_streams.empty?
+
+                db[:log_streams].import(%i[name type], new_streams)
+                resolve_stream_ids(db, stream_names)
+            end
+
+            # Return the IDs of the streams that are already registered in the database
+            #
+            # @param [Array<String>] stream_names
+            # @return [Hash<String,Integer>]
+            def self.resolve_stream_ids(db, stream_names)
+                db[:log_streams]
+                    .where(name: stream_names)
+                    .to_h { |r| [r[:name], r[:id]] }
             end
 
             # @api private
@@ -170,6 +183,7 @@ module Syskit
                 @db.create_table :log_streams do
                     primary_key :id
                     String :name, null: false
+                    String :type, null: false
                 end
 
                 @db.create_table :log_file_stream_association do
