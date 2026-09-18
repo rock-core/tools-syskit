@@ -37,8 +37,7 @@ module Syskit
                 @db = db
                 @log_files = db[:log_files]
 
-                @pending_finished_logs = []
-                @pending_new_logs = []
+                @pending = []
             end
 
             def dispose
@@ -46,7 +45,15 @@ module Syskit
                 @db = nil
             end
 
-            LogFinished = Struct.new(:time, :path, keyword_init: true)
+            LogFinished = Struct.new(:time, :path, keyword_init: true) do
+                def apply(db, _log_rotation_id)
+                    basename, = LogIndex.path_to_log_info(path)
+
+                    db[:log_files]
+                        .filter(basename: basename, end_time: nil)
+                        .update(end_time: time)
+                end
+            end
 
             # Register that an existing log file has been finished
             #
@@ -59,10 +66,29 @@ module Syskit
             #   inaccurante by a few seconds.
             # @param [String] path path of the log file that was just closed
             def register_finished_log(time, path)
-                @pending_finished_logs << LogFinished.new(time: time, path: path)
+                @pending << LogFinished.new(time: time, path: path)
             end
 
-            LogNew = Struct.new(:time, :path, :streams, keyword_init: true)
+            LogNew = Struct.new(:time, :path, :streams, keyword_init: true) do
+                def apply(db, log_rotation_id)
+                    basename, sequence = LogIndex.path_to_log_info(path)
+
+                    id = db[:log_files].insert(
+                        basename: basename, log_rotation_id: log_rotation_id,
+                        sequence: sequence, start_time: time
+                    )
+
+                    return if streams.empty?
+
+                    associations =
+                        LogIndex.insert_and_resolve_stream_ids(db, streams)
+                                .values.map do |stream_id|
+                            { log_file_id: id, log_stream_id: stream_id }
+                        end
+
+                    db[:log_file_stream_association].multi_insert(associations)
+                end
+            end
 
             # Register that a log file has been rotated
             #
@@ -78,56 +104,32 @@ module Syskit
             # @param [String,nil] new_path of the log file that has just been created.
             #   `nil` if an old file has been closed but no new file has been created
             def register_new_log(time, path, streams)
-                @pending_new_logs << LogNew.new(time: time, path: path, streams: streams)
+                @pending << LogNew.new(time: time, path: path, streams: streams)
             end
 
             # Write to the DB all registered log rotations since the last write, as a
             # single log rotation
             def write_log_rotation(time)
-                return if @pending_finished_logs.empty? && @pending_new_logs.empty?
+                return if @pending.empty?
 
                 @db.transaction(mode: :immediate) do
                     log_rotation_id = @db[:log_rotations].insert(time: time)
 
-                    @pending_finished_logs.each do |r|
-                        basename, = path_to_log_info(r.path)
-
-                        @log_files
-                            .filter(basename: basename, end_time: nil)
-                            .update(end_time: r.time)
-                    end
-
-                    @pending_new_logs.each do |r|
-                        basename, sequence = path_to_log_info(r.path)
-
-                        id = @log_files.insert(
-                            basename: basename, log_rotation_id: log_rotation_id,
-                            sequence: sequence, start_time: r.time
-                        )
-
-                        next if r.streams.empty?
-
-                        associations =
-                            insert_and_resolve_stream_ids(r.streams)
-                            .values.map do |stream_id|
-                                { log_file_id: id, log_stream_id: stream_id }
-                            end
-
-                        @db[:log_file_stream_association].multi_insert(associations)
+                    @pending.each do |r|
+                        r.apply(@db, log_rotation_id)
                     end
                 end
 
-                @pending_finished_logs.clear
-                @pending_new_logs.clear
+                @pending.clear
             end
 
-            def insert_and_resolve_stream_ids(stream_names)
+            def self.insert_and_resolve_stream_ids(db, stream_names)
                 resolved_streams =
-                    @db[:log_streams].where(name: stream_names).to_h { |r| [r[:name], r[:id]] }
+                    db[:log_streams].where(name: stream_names).to_h { |r| [r[:name], r[:id]] }
                 stream_names.map do |stream_name|
                     next if resolved_streams.key?(stream_name)
 
-                    resolved_streams[stream_name] = @db[:log_streams].insert(name: stream_name)
+                    resolved_streams[stream_name] = db[:log_streams].insert(name: stream_name)
                 end
                 resolved_streams
             end
@@ -135,7 +137,7 @@ module Syskit
             # @api private
             #
             # Extract sequence number and log basename from a log file path
-            def path_to_log_info(path)
+            def self.path_to_log_info(path)
                 basename = File.basename(path, ".log")
                 m = basename.match(/\.(\d+)/)
                 [m.pre_match, Integer(m[1])]
