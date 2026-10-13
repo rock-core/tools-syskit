@@ -116,7 +116,8 @@ module Syskit
                 compute_policies: true,
                 early_deploy: Syskit.conf.early_deploy?,
                 lazy_deploy: Syskit.conf.lazy_deploy?,
-                validate_deployed_network: true
+                validate_deployed_network: true,
+                cleanup_resolution_errors: true
             )
                 resolution_errors = []
                 log_timepoint_group "syskit-netgen:deploy-system-network" do
@@ -133,16 +134,20 @@ module Syskit
                         lazy: lazy_deploy
                     )
                     resolution_errors = process_failures(
-                        error_handler, required_instances, cleanup_failed_tasks: true
+                        error_handler, required_instances,
+                        cleanup_resolution_errors: cleanup_resolution_errors
                     )
-                    # Sanity check that the plan was properly cleaned up
-                    SystemNetworkDeployer.verify_all_tasks_deployed(
-                        work_plan, default_deployment_group, lazy: lazy_deploy
-                    )
-                    SystemNetworkGenerator.verify_all_deployments_are_unique(
-                        work_plan, toplevel_tasks_to_requirements.dup,
-                        early_deploy: early_deploy
-                    )
+
+                    if cleanup_resolution_errors
+                        # Sanity check that the plan was properly cleaned up
+                        SystemNetworkDeployer.verify_all_tasks_deployed(
+                            work_plan, default_deployment_group, lazy: lazy_deploy
+                        )
+                        SystemNetworkGenerator.verify_all_deployments_are_unique(
+                            work_plan, toplevel_tasks_to_requirements.dup,
+                            early_deploy: early_deploy
+                        )
+                    end
                 end
 
                 interruption_point(
@@ -409,7 +414,7 @@ module Syskit
                 resolution_errors = process_failures(
                     error_handler,
                     required_instances,
-                    cleanup_failed_tasks: cleanup_resolution_errors
+                    cleanup_resolution_errors: cleanup_resolution_errors
                 )
                 if cleanup_resolution_errors
                     # Sanity check that the plan was properly cleaned up
@@ -424,9 +429,11 @@ module Syskit
                 [required_instances, resolution_errors, toplevel_tasks_to_requirements]
             end
 
-            def process_failures(error_handler, required_instances, cleanup_failed_tasks:)
+            def process_failures(
+                error_handler, required_instances, cleanup_resolution_errors:
+            )
                 resolution_errors = error_handler.process_failures(required_instances)
-                return resolution_errors unless cleanup_failed_tasks
+                return resolution_errors unless cleanup_resolution_errors
 
                 error_handler.cleanup_resolution_errors(
                     resolution_errors, required_instances, work_plan
@@ -503,7 +510,8 @@ module Syskit
                                 compute_policies: compute_policies,
                                 early_deploy: early_deploy,
                                 lazy_deploy: lazy_deploy,
-                                validate_deployed_network: validate_deployed_network
+                                validate_deployed_network: validate_deployed_network,
+                                cleanup_resolution_errors: cleanup_resolution_errors
                             )
                         resolution_errors.concat(deployment_resolution_errors)
                     end
