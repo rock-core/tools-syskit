@@ -475,14 +475,8 @@ module Syskit
 
                     describe "capture_errors" do
                         before do
-                            @__capture_errors_feature_flag =
-                                Syskit.conf.capture_errors_during_network_resolution?
+                            # Flag already saved and restored one level up
                             Syskit.conf.capture_errors_during_network_resolution = true
-                        end
-
-                        after do
-                            Syskit.conf.capture_errors_during_network_resolution =
-                                @__capture_errors_feature_flag
                         end
 
                         it "applies the computed network for the well-defined " \
