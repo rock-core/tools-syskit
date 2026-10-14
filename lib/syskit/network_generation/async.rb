@@ -100,6 +100,14 @@ module Syskit
             def update_instance_requirement_tasks_on_exception(
                 requirement_tasks, exception
             )
+                # This codepath happens only when we run without the capture exception
+                # mechanism
+                #
+                # In that case, we don't identify which part of the plan is
+                # actually involved in the error, and simply assume that the new
+                # requirements are the problem. It may fail in some cases, but
+                # since the capture errors mechanism handles all cases, we decided
+                # to not fix them
                 old, new = requirement_tasks.partition(&:resolution_success?)
                 new.each { |t| t.failed_event.emit(exception) }
                 NetworkGeneration::SystemNetworkPlanApplyResult.new(
