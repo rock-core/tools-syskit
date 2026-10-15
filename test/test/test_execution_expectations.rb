@@ -9,12 +9,12 @@ module Syskit
             attr_reader :task
 
             before do
-                @task_m = task_m = Syskit::RubyTaskContext.new_submodel do
+                @task_m = Syskit::RubyTaskContext.new_submodel do
                     input_port "in", "/int"
                     output_port "out", "/int"
                 end
-                use_ruby_tasks task_m => "test", on: "stubs"
-                @task = syskit_deploy_configure_and_start(task_m)
+                @task_m = @task_m.deployed_as("test", on: "stubs")
+                @task = syskit_deploy_configure_and_start(@task_m)
             end
 
             describe "handling of apply_requirement_modifications" do

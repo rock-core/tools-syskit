@@ -249,6 +249,7 @@ module Syskit
                     assert_raises(Syskit::NetworkGeneration::PartialNetworkResolution) do
                         syskit_deploy(task_m)
                     end
+                ensure
                     Syskit.conf.capture_errors_during_network_resolution = before_flag
                 end
             end
