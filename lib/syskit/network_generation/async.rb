@@ -90,7 +90,9 @@ module Syskit
 
             def update_instance_requirement_tasks_on_result(result)
                 result.instance_requirement_tasks.each do |t|
-                    t.resolution_success_event.emit
+                    # emit resolution_success_event unless the IR task has been
+                    # stopped/finalized in the meantime
+                    t.resolution_success_event.emit if t.running?
                 end
                 result.errors.group_by(&:planning_task).each do |t, e|
                     t.failed_event.emit(*e.flat_map(&:original_exception)) if t.running?
