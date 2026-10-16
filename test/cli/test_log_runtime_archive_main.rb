@@ -2,7 +2,7 @@
 
 require "syskit/test/self"
 require "syskit/cli/log_runtime_archive_main"
-require "syskit/roby_app/tmp_root_ca"
+require_relative "../tmp_root_ca"
 
 module Syskit
     module CLI
@@ -170,7 +170,7 @@ module Syskit
                         .should_receive(:stat)
                         .and_return { flexmock(bytes_available: bytes_available) }
 
-                    upload = RobyApp::LogTransferServer::FTPUpload.new(
+                    upload = RobyApp::LogTransfer::FTPUpload.new(
                         "127.0.0.1", @server.port, @ca.certificate, "user", "password",
                         source_path / "testfile",
                         implicit_ftps: true
@@ -413,7 +413,7 @@ module Syskit
             end
 
             def setup_ca
-                @ca = RobyApp::TmpRootCA.new("127.0.0.1")
+                @ca = TmpRootCA.new("127.0.0.1")
                 @certificate_io = Tempfile.open
                 @certificate_io.write @ca.certificate
                 @certificate_io.flush
@@ -422,7 +422,7 @@ module Syskit
 
             def server_params
                 interface = "127.0.0.1"
-                ca = @ca || RobyApp::TmpRootCA.new(interface)
+                ca = @ca || TmpRootCA.new(interface)
 
                 { host: interface, port: 0,
                   certificate: ca.private_certificate_path,

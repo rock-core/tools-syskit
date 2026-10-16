@@ -2,14 +2,16 @@
 
 require "syskit/test/self"
 require "syskit/cli/log_runtime_archive"
-require "syskit/runtime/server/spawn_server"
+require "syskit/roby_app/log_transfer/server"
+
+require_relative "../../tmp_root_ca"
 
 module Syskit
     module RobyApp
-        module LogTransferServer
+        module LogTransfer
             describe FTPUpload do
                 before do
-                    @ca = RobyApp::TmpRootCA.new("127.0.0.1")
+                    @ca = TmpRootCA.new("127.0.0.1")
 
                     @source_dir = make_tmppath
                     @target_dir = make_tmppath
@@ -51,16 +53,16 @@ module Syskit
                     FTPUpload.new(
                         "127.0.0.1", @server.port, @ca.certificate,
                         "user", "password", file,
-                        implicit_ftps: Runtime::Server.use_implicit_ftps?
+                        implicit_ftps: LogTransfer.use_implicit_ftps?
                     )
                 end
 
                 def create_server
-                    Runtime::Server::SpawnServer.new(
+                    RobyApp::LogTransfer::Server.new(
                         @target_dir, "user", "password",
                         @ca.private_certificate_path,
                         interface: "127.0.0.1",
-                        implicit_ftps: Runtime::Server.use_implicit_ftps?
+                        implicit_ftps: LogTransfer.use_implicit_ftps?
                     )
                 end
             end
