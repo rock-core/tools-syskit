@@ -51,9 +51,9 @@ module Syskit
 
                     name = name.gsub(/^OroGen::/, "")
                     begin
-                        if constant("::#{name}") == self
+                        if const_get("::#{name}") == self
                             spacename = self.spacename.gsub(/^OroGen::/, "")
-                            constant("::#{spacename}").send(:remove_const, basename)
+                            const_get("::#{spacename}").send(:remove_const, basename)
                         end
                     rescue NameError
                         false

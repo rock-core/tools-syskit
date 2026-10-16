@@ -6,7 +6,7 @@ class Module
         if Roby.app.backward_compatible_naming?
             Syskit.warn msg
             require file
-            const_set old_name, constant(new_constant)
+            const_set old_name, const_get(new_constant)
         else
             Syskit.error msg
             Syskit.error "set Roby.app.backward_compatible_naming = true to reenable. This option will be removed in the future, so start using the new name and file"
