@@ -354,22 +354,60 @@ module Syskit
             end
 
             describe "#tag" do
-                it "cannot be merged with another tag of the same type" do
-                    srv_m = DataService.new_submodel
-                    profile = Profile.new
-                    profile.tag "test", srv_m
-                    profile.tag "other", srv_m
-                    test_task = profile.test_tag.instanciate(plan)
-                    other_task = profile.other_tag.instanciate(plan)
-                    refute test_task.can_merge?(other_task)
-                end
-                it "can be merged with another instance of itself" do
-                    srv_m = DataService.new_submodel
-                    profile = Profile.new
-                    profile.tag "test", srv_m
-                    test_task1 = profile.test_tag.instanciate(plan)
-                    test_task2 = profile.test_tag.instanciate(plan)
-                    assert test_task1.can_merge?(test_task2)
+                describe "a tag instance" do
+                    it "cannot be merged with an instance of another tag " \
+                       "of the same type" do
+                        srv_m = DataService.new_submodel
+                        profile = Profile.new
+                        profile.tag "test", srv_m
+                        profile.tag "other", srv_m
+                        test_task = profile.test_tag.instanciate(plan)
+                        other_task = profile.other_tag.instanciate(plan)
+                        refute test_task.can_merge?(other_task)
+                    end
+
+                    it "can be merged with another instance of itself" do
+                        srv_m = DataService.new_submodel
+                        profile = Profile.new
+                        profile.tag "test", srv_m
+                        test_task1 = profile.test_tag.instanciate(plan)
+                        test_task2 = profile.test_tag.instanciate(plan)
+                        assert test_task1.can_merge?(test_task2)
+                    end
+
+                    it "overrides component model instanciation to always only add " \
+                       "an abstract placeholder task" do
+                        task_m = TaskContext.new_submodel
+                        cmp_m = Composition.new_submodel
+                        cmp_m.add task_m, as: "child"
+
+                        profile = Profile.new
+                        profile.tag "test", cmp_m
+                        task = profile.test_tag.instanciate(plan)
+                        assert task.abstract?
+                        assert task.placeholder?
+                        refute task.find_child_from_role("child")
+                    end
+
+                    it "adds a task instance that can be found by its composition " \
+                       "when based on one" do
+                        # This is a reproduction of a bug, making sure the source
+                        # is indeed not this code
+                        task_m = TaskContext.new_submodel
+                        cmp_m = Composition.new_submodel
+                        cmp_m.add task_m, as: "child"
+                        root_cmp_m = Composition.new_submodel
+                        root_cmp_m.add cmp_m, as: "test"
+
+                        profile = Profile.new
+                        profile.tag "test", cmp_m
+                        profile.define "test", root_cmp_m.use("test" => profile.test_tag)
+
+                        root_cmp = profile.test_def.instanciate(plan)
+                        placeholder = plan.find_tasks(cmp_m).abstract.first
+                        assert placeholder
+                        assert placeholder.placeholder?
+                    end
                 end
             end
 
