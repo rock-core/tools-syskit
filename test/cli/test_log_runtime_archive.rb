@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require "syskit/test/self"
+require_relative "../tmp_root_ca"
 require "syskit/cli/log_runtime_archive"
-require "syskit/runtime/server/spawn_server"
+require "syskit/roby_app/log_transfer/server"
 
 module Syskit
     module CLI
@@ -576,7 +577,7 @@ module Syskit
             describe "FTP" do
                 before do
                     host = "127.0.0.1"
-                    @ca = RobyApp::TmpRootCA.new(host)
+                    @ca = TmpRootCA.new(host)
                     params = LogRuntimeArchive::FTPParameters.new(
                         host: host, port: 0,
                         certificate: @ca.certificate,
@@ -601,7 +602,7 @@ module Syskit
                 end
 
                 def create_server(params)
-                    Runtime::Server::SpawnServer.new(
+                    RobyApp::LogTransfer::Server.new(
                         @target_dir, params.user, params.password,
                         @ca.private_certificate_path,
                         interface: params.host,
@@ -698,7 +699,7 @@ module Syskit
                         end
 
                         it "does not remove the source file if the transfer failed" do
-                            result = RobyApp::LogTransferServer::LogUploadState::Result
+                            result = RobyApp::LogTransfer::LogUploadState::Result
                                      .new("/PATH", false, "message")
                             flexmock(LogRuntimeArchive)
                                 .should_receive(:transfer_file)

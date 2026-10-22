@@ -216,18 +216,13 @@ module Syskit
                 end
             end
 
-            describe "log rotation and transfer" do
+            describe "log rotation" do
                 before do
                     Syskit.conf.log_rotation_period = 600
-                    Syskit.conf.log_transfer.ip = "127.0.0.1"
-                    Syskit.conf.log_transfer.self_spawned = false
-                    Syskit.conf.log_transfer.target_dir = make_tmpdir
                 end
 
                 after do
                     Syskit.conf.log_rotation_period = nil
-                    Syskit.conf.log_transfer.ip = nil
-                    app.syskit_log_transfer_shutdown
                 end
 
                 it "rotates logs and returns which logs were rotated" do
@@ -275,103 +270,6 @@ module Syskit
                     end
                     app.syskit_rotate_logs
                     app.syskit_rotate_logs
-                end
-
-                it "returns an empty list of process servers " \
-                   "if log transfer is disabled" do
-                    conf = Syskit.conf.process_server_config_for("localhost")
-                    flexmock(conf).should_receive(supports_log_transfer?: true)
-                    assert_equal [], app.syskit_log_transfer_process_servers
-                end
-
-                it "returns the list of process servers whose logs we want to transfer" do
-                    app.syskit_log_transfer_prepare
-
-                    conf = Syskit.conf.process_server_config_for("localhost")
-                    flexmock(conf).should_receive(on_localhost?: false)
-                    flexmock(conf).should_receive(supports_log_transfer?: true)
-                    assert_equal [conf], app.syskit_log_transfer_process_servers
-                end
-
-                it "ignores local process servers" do
-                    Syskit.conf.log_transfer.target_dir = app.log_dir
-                    app.syskit_log_transfer_prepare
-
-                    conf = Syskit.conf.process_server_config_for("localhost")
-                    flexmock(conf).should_receive(supports_log_transfer?: true)
-                    assert_equal [], app.syskit_log_transfer_process_servers
-                end
-
-                it "does not do anything related to log transfer if it is not " \
-                   "configured" do
-                    conf = Syskit.conf.process_server_config_for("localhost")
-                    flexmock(conf).should_receive(on_localhost?: false)
-                    flexmock(conf).should_receive(supports_log_transfer?: true)
-                    flexmock(app)
-                        .should_receive(:syskit_rotate_logs)
-                        .and_return(
-                            { conf => ["old_log_file.log"],
-                              Configuration::ProcessServerConfig.new => ["some_file"] }
-                        )
-
-                    flexmock(conf.client)
-                        .should_receive(:log_upload_file).explicitly.never
-                    flexmock(conf.client)
-                        .should_receive(:log_upload_state).explicitly.never
-                    app.syskit_log_rotation_poll_handler
-                end
-
-                it "transfers data for the selected process servers" do
-                    Syskit.conf.log_transfer.user = "user"
-                    Syskit.conf.log_transfer.password = "pass"
-                    Syskit.conf.log_transfer.certificate = "cert"
-                    Syskit.conf.log_transfer.port = 42
-                    Syskit.conf.log_transfer.implicit_ftps = false
-                    conf = Syskit.conf.process_server_config_for("localhost")
-                    flexmock(conf).should_receive(on_localhost?: false)
-                    flexmock(conf).should_receive(supports_log_transfer?: true)
-                    flexmock(app)
-                        .should_receive(:syskit_rotate_logs)
-                        .and_return(
-                            { conf => ["old_log_file.log"],
-                              Configuration::ProcessServerConfig.new => ["some_file"] }
-                        )
-
-                    app.syskit_log_transfer_prepare
-                    flexmock(conf.client)
-                        .should_receive(:log_upload_file).explicitly
-                        .with("127.0.0.1", 42, "cert", "user", "pass",
-                              Pathname("old_log_file.log"),
-                              max_upload_rate: Float::INFINITY,
-                              implicit_ftps: false)
-                        .once
-                    flexmock(conf.client)
-                        .should_receive(:log_upload_state).explicitly.once
-                        .and_return(flexmock(pending_count: 0, each_result: []))
-                    app.syskit_log_rotation_poll_handler
-                end
-
-                it "ignores process servers that are not available" do
-                    Syskit.conf.log_transfer.user = "user"
-                    Syskit.conf.log_transfer.password = "pass"
-                    Syskit.conf.log_transfer.certificate = "cert"
-                    Syskit.conf.log_transfer.port = 42
-                    Syskit.conf.log_transfer.implicit_ftps = false
-                    conf = Syskit.conf.process_server_config_for("localhost")
-                    flexmock(conf).should_receive(on_localhost?: false)
-                    flexmock(conf).should_receive(supports_log_transfer?: true)
-                    flexmock(conf).should_receive(available?: false)
-                    flexmock(app)
-                        .should_receive(:syskit_rotate_logs)
-                        .and_return(
-                            { conf => ["old_log_file.log"],
-                              Configuration::ProcessServerConfig.new => ["some_file"] }
-                        )
-
-                    app.syskit_log_transfer_prepare
-                    flexmock(conf.client)
-                        .should_receive(:log_upload_file).explicitly.never
-                    app.syskit_log_rotation_poll_handler
                 end
             end
 

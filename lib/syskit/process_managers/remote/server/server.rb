@@ -69,10 +69,6 @@ module Syskit
                         @name_service_ip = name_service_ip
                         @processes = {}
                         @all_ios = []
-                        @log_upload_command_queue = Queue.new
-                        @log_upload_results_queue = Queue.new
-                        @log_upload_pending = Concurrent::AtomicFixnum.new
-                        @log_upload_thread = Thread.new { log_upload_main }
                     end
 
                     def each_client(&block)
@@ -261,8 +257,6 @@ module Syskit
 
                     # Helper method that stops all running processes
                     def quit_and_join # :nodoc:
-                        @log_upload_command_queue << nil
-
                         info "stopping process server"
                         processes.each_value do |p|
                             info "killing #{p.name}"
@@ -273,8 +267,6 @@ module Syskit
                             close_client(socket)
                         rescue SystemCallError, IOError # rubocop:disable Lint/SuppressedException
                         end
-
-                        @log_upload_thread.join
                     end
 
                     # Helper method that deals with one client request
@@ -357,19 +349,6 @@ module Syskit
                             socket.write Marshal.dump(ret)
                         elsif cmd_code == COMMAND_QUIT
                             quit
-                        elsif cmd_code == COMMAND_LOG_UPLOAD_FILE
-                            parameters = Marshal.load(socket)
-                            begin
-                                log_upload_file(socket, parameters)
-                                send_ack(socket)
-                            rescue StandardError => e
-                                send_nack(socket, e.message)
-                            end
-
-                        elsif cmd_code == COMMAND_LOG_UPLOAD_STATE
-                            state = log_upload_state
-                            socket.write RET_YES
-                            socket.write Marshal.dump(state)
                         elsif cmd_code == COMMAND_WAIT_RUNNING
                             result = {}
                             process_names = Marshal.load(socket)
@@ -551,73 +530,6 @@ module Syskit
                     def quit
                         @quit = true
                         @com_w&.write INTERNAL_QUIT
-                    end
-
-                    def log_upload_file(socket, parameters)
-                        host, port, certificate, user, password, localfile,
-                            max_upload_rate, implicit_ftps = parameters
-
-                        debug "#{socket} requested uploading of #{localfile}"
-
-                        begin
-                            localfile = log_upload_sanitize_path(Pathname(localfile))
-                        rescue Exception => e # rubocop:disable Lint/RescueException
-                            @log_upload_results_queue <<
-                                RobyApp::LogTransferServer::LogUploadState::Result.new(
-                                    localfile, false, e.message
-                                )
-                            return
-                        end
-
-                        info "queueing upload of #{localfile} to #{host}:#{port}"
-                        @log_upload_command_queue <<
-                            RobyApp::LogTransferServer::FTPUpload.new(
-                                host, port, certificate,
-                                user, password, localfile,
-                                max_upload_rate: max_upload_rate || Float::INFINITY,
-                                implicit_ftps: implicit_ftps
-                            )
-                        @log_upload_pending.increment
-                    end
-
-                    def log_upload_sanitize_path(path)
-                        log_path = Pathname(app.log_dir)
-                        full_path = path.realpath(log_path)
-                        if full_path.to_s.start_with?(log_path.to_s + "/")
-                            return full_path
-                        end
-
-                        raise ArgumentError,
-                              "cannot upload files not within the app's log directory"
-                    end
-
-                    def log_upload_main
-                        while (transfer = @log_upload_command_queue.pop)
-                            @log_upload_results_queue << transfer.open_and_transfer
-                            @log_upload_pending.decrement
-                        end
-                    end
-
-                    def log_upload_state
-                        results = []
-                        loop do
-                            results << @log_upload_results_queue.pop(true)
-                        rescue ThreadError
-                            break
-                        end
-
-                        log_dir = Pathname.new(app.log_dir)
-                        results.each do |r|
-                            if r.success?
-                                r.file.unlink
-                                r.file =
-                                    Pathname.new(r.file).relative_path_from(log_dir).to_s
-                            end
-                        end
-
-                        RobyApp::LogTransferServer::LogUploadState.new(
-                            @log_upload_pending.value, results
-                        )
                     end
                 end
             end
