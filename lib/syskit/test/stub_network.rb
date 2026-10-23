@@ -358,7 +358,7 @@ module Syskit
 
                 new_args = {}
                 task.arguments.each do |key, arg|
-                    new_args[key] = arg if deployed_task.arguments.writable?(key, arg)
+                    new_args[key] = arg if deployed_task.arguments.writable?(key)
                 end
                 deployed_task.assign_arguments(**new_args)
                 deployed_task
