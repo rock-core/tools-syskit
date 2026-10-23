@@ -79,6 +79,11 @@ module Syskit
             # become the default behavior.
             attr_predicate :strict_model_for, true
 
+            # Controls whether the log index functionality is enabled
+            #
+            # It is disabled by default because the functionality is experimental
+            attr_predicate :enable_log_index, true
+
             # Data logging configuration
             #
             # @return [LoggingConfiguration]
@@ -306,6 +311,7 @@ module Syskit
                 @capture_errors_during_network_resolution = false
                 @local_only_configuration_files = false
                 @use_rock_time_field_for_logging = false
+                @enable_log_index = false
 
                 @remote_process_managers_accept_failed_connections = false
                 @remote_process_managers_connection_retry_period = 5
