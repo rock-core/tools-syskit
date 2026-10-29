@@ -224,8 +224,7 @@ module Syskit
                     app.syskit_remove_configuration_changes_listener
                 end
 
-                @syskit_log_index&.dispose
-                @syskit_log_index = nil
+                app.syskit_close_log_index
 
                 stop_local_process_server(app)
                 disconnect_all_process_servers
@@ -1074,6 +1073,11 @@ module Syskit
 
             def syskit_create_log_index
                 @syskit_log_index = LogIndex.create(syskit_log_index_path)
+            end
+
+            def syskit_close_log_index
+                @syskit_log_index&.dispose
+                @syskit_log_index = nil
             end
 
             # (see LogIndex#register_new_log)
